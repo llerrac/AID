@@ -1,0 +1,96 @@
+package Aid6;
+
+{$R *.res}
+{$R 'CEVersionInfo.dcr'}
+{$R 'VOLOVIEWXLib_TLB.dcr'}
+{$ALIGN 8}
+{$ASSERTIONS ON}
+{$BOOLEVAL OFF}
+{$DEBUGINFO ON}
+{$EXTENDEDSYNTAX ON}
+{$IMPORTEDDATA ON}
+{$IOCHECKS ON}
+{$LOCALSYMBOLS ON}
+{$LONGSTRINGS ON}
+{$OPENSTRINGS ON}
+{$OPTIMIZATION ON}
+{$OVERFLOWCHECKS OFF}
+{$RANGECHECKS OFF}
+{$REFERENCEINFO ON}
+{$SAFEDIVIDE OFF}
+{$STACKFRAMES OFF}
+{$TYPEDADDRESS OFF}
+{$VARSTRINGCHECKS ON}
+{$WRITEABLECONST ON}
+{$MINENUMSIZE 1}
+{$IMAGEBASE $400000}
+{$DESCRIPTION ' IBO Atlas BOM Custom Components'}
+{$LIBSUFFIX 'ibo'}
+{$DESIGNONLY}
+{$IMPLICITBUILD ON}
+{$DEFINE BDEFREE}
+{$DEFINE ALLOW_DEFAULT_SESSION}
+
+requires
+  vcl,
+  rtl,
+  dbrtl,
+  vcldb,
+  kbmMemD6Des,
+  cr6,
+  crIB6,
+  crDlg6,
+  crdb6,
+  ics6,
+  IBO40CRT_D6,
+  IBO40XRT_D6,
+  crDbCommon6,
+  ibxpress;
+
+contains
+  aidTypes in 'aidTypes.pas',
+  aidLang in 'aidLang.pas',
+  aidReg in 'aidReg.pas',
+  aidUtil in 'aidUtil.pas',
+  aiddbUtil in 'aiddbUtil.pas',
+  d_AID in 'd_Aid.pas' {ModAid: TDataModule},
+  aiddbLkpAssm in 'aiddbLkpAssm.pas',
+  aiddbLkpBOM in 'aiddbLkpBOM.pas',
+  aiddbLkpComp in 'aiddbLkpComp.pas',
+  aiddbLkpCont in 'aiddbLkpCont.pas',
+  aiddbLkpPart in 'aiddbLkpPart.pas',
+  aiddbLkpPurch in 'aiddbLkpPurch.pas',
+  f_Assm in 'f_Assm.pas' {FrmFndAssm},
+  f_BOM in 'f_bom.pas' {FrmFndBOM},
+  f_Comp in 'f_Comp.pas' {FrmFndComp},
+  f_Cont in 'f_Cont.pas' {FrmFndContract},
+  f_Part in 'f_Part.pas' {FrmFndPart},
+  f_Purch in 'f_Purch.pas' {FrmFndPurch},
+  CEVersionInfo in 'CEVERSIONINFO.pas',
+  VOLOVIEWXLib_TLB in 'VOLOVIEWXLib_TLB.pas',
+  WinInfo in 'WinInfo.pas',
+  aidwlRunoutGrid in 'aidwlRunoutGrid.pas',
+  aidwlTypes in 'aidwlTypes.pas',
+  aidwlLookups in 'aidwlLookups.pas',
+  aidwlCableGrid in 'aidwlCableGrid.pas',
+  aidCodedColor in 'aidCodedColor.pas',
+  aiddbCodedColor in 'aiddbCodedColor.pas',
+  aidSearchHTS in 'aidSearchHTS.pas' {frmSearchHTS},
+  aidCommsObj in 'aidCommsObj.pas',
+  aidCommsTypes in 'aidCommsTypes.pas',
+  aidCommsThread in 'aidCommsThread.pas',
+  aiddbLkp in 'aiddbLkp.pas',
+  aiddbLkpSite in 'aiddbLkpSite.pas',
+  aiddbLkpGeneric in 'aiddbLkpGeneric.pas',
+  aiddbLkpUsers in 'aiddbLkpUsers.pas',
+  aiddblkpWarehouse in 'aiddbLkpWarehouse.pas',
+  aiddblkpJob in 'aiddbLkpJob.pas',
+  aiddblkpAnalysisCode in 'aiddbLkpAnalysisCode.pas',
+  aiddblkpResource in 'aiddbLkpResource.pas',
+  aidTsimpleDict in 'aidtsimpleDict.pas',
+  aidDatbaseLifetime in 'aidDatbaseLifetime.pas',
+  aidDataClasses in 'aidDataClasses.pas',
+  aiddbLkpEnquiry in 'aiddbLkpEnquiry.pas',
+  f_PoEnqItem in 'f_PoEnqItem.pas' {FrmFndPurchEnqItem};
+
+end.

@@ -1,0 +1,824 @@
+unit BOMLookups;
+
+{ -------------------------------------------------------------------------------------------------
+  Name        : BOMLookups
+  Author      : Chris G. Royle
+  Description : This unit holds types related to lookups management in BOMs. This was created to
+                slightly reduce the dependancy on d_BOM.
+
+  Todo        : The unit hasn't been completely developed. We should register against
+                each lookup definition the editor class, visualisation properties etc.
+
+
+                Object classes need to be defined for non generic lookups eg Site, Job, Analysis codes, etc.
+
+  Note        : see also BOMTypes
+  Modified    :
+    14-17OCT2006 : ajc : added Customer profile code lookups.
+    2010mar   ajc     added TDBomLookupMaintain to handle creating maintenance dialogues.
+    june 2011 ajc removed TDBomLookupMaintain.
+                  See uaid_Lookups which takes this code and resues it. This now a register for lookups within a datamodule.
+                  As noted
+
+  -------------------------------------------------------------------------------------------------}
+
+interface
+
+uses
+  { Delphi Units }
+  classes,db;
+
+
+const
+  _LookupRange_Boms = 'boms';//constant to be used when regsitering TbomLookups in  uaid_Lookups.
+  _LookupRange_Lookups = 'lookups';//constant to be used when regsitering TbomLookups in  uaid_Lookups and lookups not in TModData.
+type
+  TbomLookup =  { Enumeration used for lookup caching }
+  ( bmlkpCountry,
+    bmlkpCurrency,
+    bmlkpUser,
+    bmlkpOrgUnit,
+    bmlkpSite, bmlkpEmailBodies,
+    bmlkpBusDivisions,
+    bmlkpWare,
+    bmlkpBinType,
+    bmlkpPartType,
+    bmlkpPackaging, bmlkpQuality,
+    bmlkpEngineer,
+    // Sales
+    bmlkpQuotesStatus, bmlkpSalesStatus,
+    bmlkpDelFrom,
+    bmlkpDelDelay,
+    bmlkpSalesPerson,
+    bmlkpDelTerms,
+    bmlkpSalesNatOfTrans, bmlkpModeOfTrans,
+    bmlkpPaymentTerms,
+    bmlkpSalesRegion,
+    bmlkpSalesAnalysis,
+    bmlkpSalesFOCReason,
+    //
+    bmlkpCompType,
+    // BOMs */
+    bmlkpBOMSeries, bmlkpBOMLoc,
+    // Items  -- covers contracts, sections,assemblies,boms, parts, so on
+    bmlkpItemRole,bmlkpItemState,bmlkpItemType,bmlkpItemUserRoles,
+    bmlkpECComm, bmLkpHSTARI,
+    // Change Orders */
+    bmlkpCOActions {CO-ACT}, bmlkpCOReasons{CO-WHY},
+    //
+    //purchase order
+    bmlkpPOPriority,
+    bmlkpPartOP, bmlkpPartPriceBand, bmlkpCostSplitItemCategory{CSANAL},
+    bmlkpPOStatus,
+    bmlkpPOCostType, bmlkpPOCostCode, bmlkpPOAnalCodes,
+    bmlkpPORole, bmlkpPORule,
+    bmlkpPoReason,
+    bmlkpPOEnqStatus,bmlkpPOEnqType
+    //assembly
+    ,bmlkpAsmContStatus, bmlkpAsmSectStatus, bmlkpAsmtype,
+    // Jobs
+    bmlkpJob, bmlkpFunctionGroups, bmlkpFunctions,
+    bmlkpResourceType, bmlkpResourceRate,
+    bmlkpCostDepartment, bmlkpEmployeeTeam,
+    bmlkpFunctionArea, bmlkpAnalysisAlgorithims,
+    //
+    bmlkpLogTyp,
+    bmlkpProdDept,
+    bmlkpDocViewTypes, { Document Types (Viewing) }
+    // Technical Contacts
+    bmlkpTCInit, bmlkpTCStatus, bmlkpTCPriority, bmlkpTCChgTy, bmlkpTCNatOfProb, bmlkpTCBillingType , bmlkpTCBillingParts, bmlkpTCMessages, bmlkpTCPaymentMethod,
+    // Repairs & Returns
+    bmlkpRRStatus, bmlkpRRType, bmlkpRRAct,
+    // Companies
+    bmlkpContMM, bmlkpCustMS,
+    bmlkpLang, bmlkpManType, bmlkpManHeading,
+
+    // Machine Issues Reporting
+    bmlkpMIRProblemCat, {MIPROB}
+    // various
+    bmlkpModel, {Models}
+    bmlkpBankHolidays, { Bank Holidays }
+    bmlkpPrinterPaperSize,
+    bmlkpSites,
+    // Contract Information
+    bmlkpControlVoltages, bmlkpSupplyVoltages, bmlkpManualCopies,
+    //Customer Profile Related
+    bmlkpCustomerProfiles,
+    bmlkpQuoteTc, bmlkpAcknowledgeTC, bmlkpPackingInstructions,
+    bmlkpReturnsInstructions,
+    {}
+    bmLkpStockRows, bmlkpStockLocations,
+    {}
+    bmlkpUnknown
+  );
+type
+  TbomLookups = set of TbomLookup;
+
+const
+  bmlkpWarehouse = bmlkpWare;
+
+type
+  TbomLookupLoadArgument  = (bmlkpIncludeObsolete, bmlkpIncludeAllItem, bmlkpIncludeNoneItem, bmlkpForceRefresh);
+
+  TbomLookupLoadArguments = set of TbomLookupLoadArgument;
+
+type
+  //forward declare
+  TcustomLookupConfiguration = class;
+
+  //
+  TCustomLookupRefresh = class(tobject)
+    //function (id : TbomLookup;lookupgroup : string;ds : tdataset;args : TbomLookupLoadArguments ) : boolean of object;
+    function Refresh(id : TbomLookup;args : TbomLookupLoadArguments;config : TcustomLookupConfiguration ) : boolean;virtual;
+  end;
+
+
+  //handle lookups settings, and special refresh requirements of some
+  TCustomLookupRecord = record
+                lookupid        : TbomLookup;
+                lookuprefresh   : TcustomLookupRefresh;
+                lookupgroup     : string;
+                OrderBy         : string;//defaul to = 'Key_Lk';
+                Pad             : Integer;//default to = -1;
+                HiddenFieldName : string;
+                args            : TbomLookupLoadArguments;
+                end;
+
+
+
+  TcustomLookupConfiguration = class(TObject)
+  private
+
+    FsKeyFieldName           : String;
+    FsDescFieldName_EN       : String;
+    FsObsoleteRecordFieldName: String;
+    FoDataset                : TDataset;
+  protected
+    FClurRrefresh            : boolean;
+    FClur                    : TCustomLookupRecord;
+  public
+    constructor create;
+    class function CreateWithParameters(MasterClur : TCustomLookupRecord ;
+                                            Refreshmeans : TCustomLookupRefresh): TcustomLookupConfiguration;
+  public
+    procedure refresh;virtual;
+    property KeyFieldName            : String   read FsKeyFieldName            write FsKeyFieldName;            { Key Field Field Name. }
+    property DescFieldName_EN        : String   read FsDescFieldName_EN        write FsDescFieldName_EN;        { Description Field Field Name (ENGLISH) }
+    property ObsoleteRecordFieldName : String   read FsObsoleteRecordFieldName write FsObsoleteRecordFieldName; { Empty if the lookup does not support obsolete fields. }
+    property Dataset                 : TDataset read FoDataset                 write FoDataset;                 { Associated Lookup dataset - check that this is assigned before using. }
+  end;
+
+
+type
+  { TGenericLookupConfiguration
+      Configuration definition for table Lookups - see Lookups.sql }
+  TGenericLookupConfiguration = Class(TcustomLookupConfiguration)
+  public
+    { Structors }
+    class function CreateWithParameters(const AsFilter: String; AoDataset: TDataset; const AwKeyLength: Word = 10): TGenericLookupConfiguration;
+
+//    class function CreateWithParameters(const AsFilter: String; AoDataset: TDataset; const AwKeyLength: Word = 10): TGenericLookupConfiguration;
+  private
+    FwKeyLength               : Word;
+    FsFilter                  : String;
+  public
+    procedure refresh;override;
+    property KeyFieldName;
+    property DescFieldName_EN;
+    property ObsoleteRecordFieldName;
+    property Dataset;
+    {}
+    property KeyLength            : Word    read FwKeyLength  write FwKeyLength;
+    property Filter               : String  read FsFilter     write FsFilter;
+  end;
+
+
+type
+  { TSiteLookupConfiguration
+      Configuration definition for table Site - see DataStock.sql }
+  TSiteLookupConfiguration = Class(TcustomLookupConfiguration)
+  public
+    { Structors }
+    class function CreateWithParameters(AoDataset: TDataset): TSiteLookupConfiguration;
+
+  private
+
+  public
+    property KeyFieldName;
+    property DescFieldName_EN;
+    property ObsoleteRecordFieldName;
+    property Dataset;
+  end;
+
+type
+  { TCustomerProfileLookupConfiguration
+      Configuration definition for table Customer Profile Site - see DataStock.sql }
+  TCustomerProfileLookupConfiguration = Class(TcustomLookupConfiguration)
+  public
+    { Structors }
+    class function CreateWithParameters(AoDataset: TDataset): TCustomerProfileLookupConfiguration;
+  private
+  public
+    property KeyFieldName;
+    property DescFieldName_EN;
+    property ObsoleteRecordFieldName;
+    property Dataset;
+  end;
+
+type
+  { TResourceFunctionLookupConfiguration
+      Configuration definition for table ResFunctions - see DataJob.sql  }
+  TResourceFunctionLookupConfiguration = Class(TcustomLookupConfiguration)
+  public
+    { Structors }
+    class function CreateWithParameters(AoDataset: TDataset): TResourceFunctionLookupConfiguration;
+  private
+    FsGroupFieldName: String;
+  public
+    property GroupFieldName: String   read FsGroupFieldName write FsGroupFieldName;
+    property KeyFieldName;
+    property DescFieldName_EN;
+    {}
+    property Dataset;
+  end;
+
+type
+  { TOrganisationalUnitLookupConfiguration
+      Configuration definition for table OrgUnit - see DataUser.sql }
+  TOrganisationalUnitLookupConfiguration  = Class(TcustomLookupConfiguration)
+  public
+    { Structors }
+    class function CreateWithParameters(AoDataset: TDataset): TOrganisationalUnitLookupConfiguration;
+  private
+  public
+    property KeyFieldName;
+    property DescFieldName_EN;
+    property ObsoleteRecordFieldName;
+    property Dataset;
+  end;
+
+type
+  { TWarehouseLookupConfiguration
+      Lookup Configuration for table Warehouse - see DataStock.sql }
+  TWarehouseLookupConfiguration = class(TcustomLookupConfiguration)
+  public
+    { Structors }
+    class function CreateWithParameters(AoDataset: TDataset): TWarehouseLookupConfiguration;
+  private
+    FsSiteKeyFieldName: String;
+  public
+    property SiteKeyFieldName: String   read FsSiteKeyFieldName write FsSiteKeyFieldName;
+    property KeyFieldName;
+    property DescFieldName_EN;
+    property ObsoleteRecordFieldName;
+    property Dataset;
+  end;
+
+type
+  { TWarehouseRowLookupConfiguration
+      Lookup configuration for table StockLocation (sub set Rows) }
+  TWarehouseRowLookupConfiguration= class(TcustomLookupConfiguration)
+  public
+    { Structors }
+    class function CreateWithParameters(AoDataset: TDataset): TWarehouseRowLookupConfiguration;
+  private
+    FsSiteKeyFieldName      : String;
+    FsWarehouseKeyFieldName : String;
+  public
+    property SiteKeyFieldName     : String  read FsSiteKeyFieldName       write FsSiteKeyFieldName;
+    property WarehouseKeyFieldName: String  read FsWarehouseKeyFieldName  write FsWarehouseKeyFieldName;
+    property KeyFieldName;
+    property DescFieldName_EN;
+    property ObsoleteRecordFieldName;
+    property Dataset;
+  end;
+
+type
+  { TStockLocationLookupConfiguration
+      Lookup configuration for table StockLocation (sub set Rows) }
+  TStockLocationLookupConfiguration= class(TcustomLookupConfiguration)
+  public
+    { Structors }
+    class function CreateWithParameters(AoDataset: TDataset): TStockLocationLookupConfiguration;
+  private
+    FsSiteKeyFieldName      : String;
+    FsWarehouseKeyFieldName : String;
+    FsRowKeyFieldName       : String;
+  public
+    property SiteKeyFieldName     : String  read FsSiteKeyFieldName       write FsSiteKeyFieldName;
+    property WarehouseKeyFieldName: String  read FsWarehouseKeyFieldName  write FsWarehouseKeyFieldName;
+    property RowKeyFieldName      : String  read FsRowKeyFieldName        write FsRowKeyFieldName;
+    property KeyFieldName;
+    property DescFieldName_EN;
+    property ObsoleteRecordFieldName;
+    property Dataset;
+  end;
+
+  TSiteLookupsConfiguration =  TGenericLookupConfiguration;
+
+
+
+{ RegisterGlobalLookup
+    Registers a lookup configuration in to the global lookup definitions cache. }
+procedure RegisterGlobalLookup     (AeLookup: TbomLookup; AoBOMLookup: TCustomLookupConfiguration);overload;
+
+procedure RegisterGlobalLookup     (AoBOMLookup: TCustomLookupConfiguration;lookupcode : string);overload;
+
+{ UnregisterGlobalLookup
+    De-registers a lookup configuration from the global configuration cache. }
+procedure UnregisterGlobalLookup   (AeLookup: TbomLookup);
+
+{ GlobalLookupConfiguration
+    Retrieves the lookup definition for the enumerated lookup type. nil is returned where the
+    lookup is not cached. }
+function  GlobalLookupConfiguration(AeLookup: TbomLookup): TCustomLookupConfiguration;
+
+procedure SetGlobalLookupConfigurationLookup(AeLookup: TbomLookup);
+function  GlobalLookupKeyResolution(var clur : TCustomLookupRecord) : string;
+
+
+implementation
+
+uses
+  TypInfo, SysUtils;
+
+type
+  TGlobalLookupDefinitionStore = class(TObject)
+  private
+    FosStore    : TStringList;
+    FdefaultResfresh : TCustomLookupRefresh;
+    function    LookupIndex(AeLookup: TbomLookup): String;
+    procedure   Clear();
+  public
+    constructor Create();
+    destructor  Destroy(); override;
+    {}
+    procedure   AddToStore(AeLookup: TbomLookup; AoConfiguration : TcustomLookupConfiguration);
+    function    FindConfiguration(AeLookup: TbomLookup): TcustomLookupConfiguration;
+    procedure   RemoveFromStore(AeLookup: TbomLookup);
+    procedure   RefreshStore(AeLookup: TbomLookup);
+    //dependency to storage means of lookup data.
+    function    lookupKeyResolution(var clur : TCustomLookupRecord) : string;
+    procedure   SetGlobalLookupConfigurationLookup(default : TCustomLookupRefresh);
+
+  end;
+
+
+
+
+var
+  GlobalLookupDefinitions : TGlobalLookupDefinitionStore;
+
+
+{ TGlobalLookupDefinitionStore }
+constructor TGlobalLookupDefinitionStore.Create;
+begin
+  FosStore:= TStringList.Create;
+  FosStore.Sorted    := True;
+  FosStore.Duplicates:= dupIgnore;
+end;
+
+destructor TGlobalLookupDefinitionStore.Destroy;
+begin
+  Clear();
+  FreeAndNil(FosStore);
+  inherited;
+end;
+
+procedure TGlobalLookupDefinitionStore.Clear();
+var
+  iK  : Integer;
+begin
+  for iK:= 0 to FosStore.Count-1 do
+    if Assigned(FosStore.Objects[iK]) then
+      FosStore.Objects[iK].Free;
+  FosStore.Clear;
+end;
+
+function  TGlobalLookupDefinitionStore.LookupIndex(AeLookup: TbomLookup): String;
+begin
+  Result:= GetEnumName(TypeInfo(TbomLookup), ord(AeLookup));
+end;
+
+function TGlobalLookupDefinitionStore.lookupKeyResolution(var clur : TCustomLookupRecord) : string;
+begin
+
+   clur.lookupgroup := '';
+      case clur.lookupid of
+        bmlkpCountry        : ; //clur.lookuprefresh :=  LoadLkpCountry(AbRefreshOnly);
+        bmlkpUser           : ;//clur.lookuprefresh := LoadUserLookups();
+        bmlkpOrgUnit         : ;//clur.lookuprefresh := loadOrganisationalUnitsLookup { Organisational Units }
+        bmlkpSite           : ;//LoadSiteLookup();
+        bmlkpWarehouse       : ;//LoadWarehouseLookup(AbRefreshOnly);
+        { Stock Location Rows. }
+        bmLkpStockRows       : ;//LoadStockRowsCache(AbRefreshOnly);
+
+        bmlkpStockLocations  : ;//LoadStockLocationsCache(AbRefreshOnly);
+
+        bmlkpEmailBodies    : ;//LoadEmailBodiesCache;
+        bmlkpSalesRegion    : clur.lookupgroup := 'SLSRGN';
+        bmlkpSalesAnalysis  : clur.lookupgroup := 'SLANAL';
+        bmlkpSalesFOCReason : clur.lookupgroup := 'FOCWHY';
+        bmlkpCurrency       : begin clur.lookupgroup := 'CURNCY'; clur.OrderBy := 'Key_Lk'; clur.pad := -1; clur.HiddenFieldName := 'Log1'; end;
+        bmLkpLang           : clur.lookupgroup := 'LANGUA';
+        bmLkpManType        : clur.lookupgroup := 'MANTYP';
+        bmLkpManHeading     : clur.lookupgroup := 'MANHED';
+        bmlkpBinType        : begin clur.lookupgroup := 'BINTYP'; clur.OrderBy := 'Str1'; end;
+        bmlkpBOMSeries      : clur.lookupgroup :=  'ASMSER' ;
+        bmlkpBOMLoc         : begin clur.lookupgroup :=  'BOMLOC'; clur.OrderBy := 'Desc_Lk'; end;
+        bmlkpCOActions      : begin clur.lookupgroup :=  'CO-ACT'; clur.OrderBy := 'Desc_Lk'; end;
+        bmlkpCOReasons      : begin clur.lookupgroup :=  'CO-WHY'; clur.OrderBy := 'Desc_Lk'; end;
+        bmlkpDelFrom        : clur.lookupgroup :=  'DELFRM';
+        bmlkpModeOfTrans    : clur.lookupgroup :=  'MODEOF';
+        bmlkpDelDelay       : clur.lookupgroup :=  'DELDLY';
+        bmlkpPaymentTerms   : clur.lookupgroup :=  'CUPYTM';
+        bmlkpSalesNatOfTrans: clur.lookupgroup :=  'SLSNOT';
+        bmlkpPartType       : begin clur.lookupgroup := 'STCKTY'; clur.OrderBy := 'Str1'; end;
+        bmlkpPackaging      : clur.lookupgroup :=  'PACKTY';
+        bmlkpQuality        : clur.lookupgroup :=  'QUALTY';
+        bmLkpLogTyp         : clur.lookupgroup :=  'LOGTYP';
+        bmlkpDelTerms       : clur.lookupgroup :=  'DELTRM';
+        bmlkpSalesPerson    : begin clur.lookupgroup :=  'SLSPER'; clur.OrderBy := 'Desc_Lk'; clur.HiddenFieldName := 'Log1' ;end;
+        bmlkpEngineer       : clur.lookupgroup :=  'ENGINR';
+        bmlkpQuotesStatus   : clur.lookupgroup :=  'QTSTAT';
+        bmlkpSalesStatus    : clur.lookupgroup :=  'CPSTAT';
+
+
+        bmLkpCompType       : clur.lookupgroup :=  'COTYPE' ;
+        bmlkpPOPriority     : clur.lookupgroup :=  'POFAST' ;
+        bmlkpPartOP         : begin clur.lookupgroup :=  'PARTOP'; clur.OrderBy := 'Desc_Lk'; end;
+        bmlkpPartPriceBand  : clur.lookupgroup :=  'PRCBND';
+        bmlkpCostSplitItemCategory: clur.lookupgroup :=   'CSANAL';
+        bmLkpPOStatus       : begin clur.lookupgroup :=  'POSTAT';clur.OrderBy := 'Str1'; end;
+        bmLkpBusDivisions   : begin clur.lookupgroup :=  'BUSDIV'; clur.OrderBy := 'Key_Lk'; clur.HiddenFieldName := 'Log1' ;end;
+        bmLkpPOCostType     : clur.lookupgroup :=   'POSUTY';
+        bmLkpPOCostCode     : clur.lookupgroup :=   'POSUCD';
+        bmLkpPOAnalCodes    : clur.lookupgroup :=   'PLANAL';
+        bmLkpPORole         : clur.lookupgroup :=   'POROLE';
+        bmLkpPORule         : clur.lookupgroup :=   '';//LoadLkpPORule(AbRefreshOnly);
+        bmlkpPOEnqStatus    : clur.lookupgroup :=   'PESTAT';
+        bmLkpAsmContStatus  : begin clur.lookupgroup :=  'ASST-J'; clur.OrderBy := 'Str1'; end;
+        bmLkpAsmSectStatus  : begin clur.lookupgroup :=  'ASST-S'; clur.OrderBy := 'Str1'; end;
+        bmlkpProdDept       : clur.lookupgroup :=  '  ';//THIS IS CORRECT 2 blank spaces.
+        // Machine Issue Reporting
+        bmlkpMIRProblemCat  : clur.lookupgroup :=   'MIPROB';
+        // Technical Contact
+        bmlkpTCInit         : clur.lookupgroup :=   'TCINI' ;
+        bmlkpTCStatus       : begin clur.lookupgroup :=  'TCSTAT'; clur.OrderBy := 'lusequence'; end;
+        bmlkpTCPriority     : clur.lookupgroup :=  'TCPRIO';
+        bmlkpTCChgTy        : clur.lookupgroup :=  'TCCHRG';
+        bmlkpTCNatOfProb    : clur.lookupgroup :=  'TCNOP' ;
+        // Company / Contact
+        bmLkpContMM         : clur.lookupgroup :=  'CONTMM';
+        bmLkpCustMS         : clur.lookupgroup :=  'CUSTMS';
+        // Repairs and Returns
+        bmlkpRRStatus       : clur.lookupgroup :=  'RRSTAT';
+        bmlkpRRType         : clur.lookupgroup :=  'RRTYPE';
+        bmlkpRRAct          : clur.lookupgroup :=  'RRACT' ;
+        // Commodity Codes
+        bmlkpEcComm         : clur.lookupgroup :=  'ECCOMM';
+        bmLkpHSTARI         : clur.lookupgroup :=  'HSTARI';
+        // Job
+        bmLkpJob            : clur.lookupgroup :=  '';//LoadJobLookup(AbRefreshOnly);
+        { Costing departments. }
+        bmLkpCostDepartment : clur.lookupgroup :=  '';{
+        begin
+          if AbRefreshOnly then lOpen:= LkpCostDepartment.Active else lOpen := not LkpCostDepartment.Active;
+          if lOpen then
+          begin
+            ExecQry('SELECT distinct CostDeptCode, CostDeptDesc, ResourceRate, FunctionGroup FROM CostDept ORDER BY CostDeptDesc');
+            try
+              LkpCostDepartment.Active:= False;
+              LkpCostDepartment.Active:= True;
+              IBQry.First;
+              while not IBQry.Eof do
+              begin
+                LkpCostDepartment.Append;
+                LkpCostDepartmentKey_Lk  .AsString := Trim(IBQry.Fields[0].AsString);
+                LkpCostDepartmentDesc_Lk .AsString := Trim(IBQry.Fields[1].AsString);
+                LkpCostDepartmentLkp2    .AsString := Trim(IBQry.Fields[2].AsString);
+                LkpCostDepartmentStr1    .AsString := Trim(IBQry.Fields[3].AsString);
+                LkpCostDepartmentLkp1    .AsString := '';
+                LkpCostDepartment.Post;
+                //
+                IBQry.Next;
+              end;
+            finally
+              CloseQuery();
+            end;
+          end;
+          // Register the lookup in the global cache.
+          //bomLookups.RegisterGlobalLookup(bomLkpCostDepartment, TResourceFunctionLookupConfiguration.CreateWithParameters(LkpCostDepartment));
+        end;  }
+        bmLkpFunctionGroups : clur.lookupgroup :=  'GRPFNC';
+        bmlkpFunctions      : clur.lookupgroup :=  '';//LoadLkpResourceFunctions( AbRefreshOnly);
+        bmLkpResourceType   : clur.lookupgroup :=  'RESTYP';
+        bmLkpResourceRate   : clur.lookupgroup :=  'RESRTE';
+        bmLkpEmployeeTeam   : clur.lookupgroup :=  'EMTEAM';
+        bmLkpFunctionArea   : clur.lookupgroup :=  'FNCARE';
+        bmlkpAnalysisAlgorithims : clur.lookupgroup :=  ''; //LoadLkpAnalysisAlgorithims(AbRefreshOnly);
+        bmLkpModel          : clur.lookupgroup :=  'MODEL';
+        bmlkpBankHolidays   : clur.lookupgroup :=  'BNKHOL';
+        bmLkpControlVoltages: clur.lookupgroup :=  'CTIVLT';
+        bmLkpSupplyVoltages : clur.lookupgroup :=  'CTIPWR';
+        bmLkpManualCopies   : clur.lookupgroup :=  'MANCPY';
+
+        { Customer Profiles }
+        bmlkpCustomerProfiles:
+        begin
+        {
+          if AbRefreshOnly then
+            lOpen:= lkpCustProfile.Active else lOpen:= not lkpCustProfile.Active;
+
+          if lOpen then
+          begin
+            ExecQry('SELECT cp.ProfileNo, cp.ProfileName FROM CustomerProfile cp Order By cp.ProfileNo');
+            try
+              lkpCustProfile.LoadFromDataSet(ibQry, [mtcpoStructure, mtcpoProperties]);
+              lkpCustProfile.Tag:= Ord(iK);
+            finally
+              CloseQuery();
+            end;
+          end;
+
+          //Register the lookup in the global cache.
+          bomLookups.RegisterGlobalLookup(iK, TCustomerProfileLookupConfiguration.CreateWithParameters(lkpCustProfile));
+          }
+        end;
+        bmlkpPoReason   : clur.lookupgroup :=  'MANCPY';
+      //TO DO : strip all this lookup buiness out of dbom and into bom lookups. use the dynamic system in there in queries.
+        bmlkpItemRole  :clur.lookupgroup :=  'BOMROL';
+        bmlkpItemState :clur.lookupgroup :=  'BOMWFS';
+        bmlkpItemType :clur.lookupgroup :=  'ITEMTP';
+        bmlkpItemUserRoles : clur.lookupgroup :=  '';
+        bmlkpPrinterPaperSize : clur.lookupgroup :=  'PPSIZE';
+      end;
+
+   result :=clur.lookupgroup;
+end;
+
+procedure TGlobalLookupDefinitionStore.AddToStore(AeLookup: TbomLookup; AoConfiguration : TcustomLookupConfiguration);
+var
+  sIndex  : String;
+  iStore  : Integer;
+begin
+  if Assigned(AoConfiguration) then
+  begin
+    sIndex:= LookupIndex(AeLookup);
+    iStore:= FosStore.IndexOf(sIndex);
+    if ( iStore < 0 ) then
+      FosStore.AddObject(sIndex, AoConfiguration)
+    else
+    begin
+      FosStore.Objects[iStore].Free;
+      FosStore.Objects[iStore]:= AoConfiguration;
+    end;
+  end;
+end;
+
+function TGlobalLookupDefinitionStore.FindConfiguration(AeLookup: TbomLookup): TcustomLookupConfiguration;
+var
+  sIndex  : String;
+  iStore  : Integer;
+begin
+  Result:= nil;
+  sIndex:= LookupIndex(AeLookup);
+  iStore:= FosStore.IndexOf(sIndex);
+  if ( iStore >= 0 ) then
+    Result:= TcustomLookupConfiguration(FosStore.Objects[iStore]);
+end;
+
+
+{ RemoveFromStore
+    Removes an entry from the object store. }
+procedure TGlobalLookupDefinitionStore.RemoveFromStore(AeLookup: TbomLookup);
+var
+  sIndex  : String;
+  iStore  : Integer;
+begin
+  sIndex:= LookupIndex(AeLookup);
+  iStore:= FosStore.IndexOf(sIndex);
+  if ( iStore >= 0 ) then
+  begin
+    FosStore.Objects[iStore].Free;
+    FosStore.Delete(iStore);
+  end;
+end;
+
+procedure TGlobalLookupDefinitionStore.SetGlobalLookupConfigurationLookup(
+  default: TCustomLookupRefresh);
+begin
+
+end;
+
+procedure RegisterGlobalLookup(AeLookup: TbomLookup; AoBOMLookup: TcustomLookupConfiguration);
+begin
+  if Assigned(GlobalLookupDefinitions) then
+    GlobalLookupDefinitions.AddToStore(AeLookup, AoBOMLookup);
+end;
+
+procedure RegisterGlobalLookup     (AoBOMLookup: TCustomLookupConfiguration;lookupcode : string);
+begin
+//  if Assigned(GlobalLookupDefinitions) then
+//    GlobalLookupDefinitions.AddToStore(AoBOMLookup. AeLookup, AoBOMLookup);
+end;
+
+procedure UnregisterGlobalLookup(AeLookup: TbomLookup);
+begin
+  if Assigned(GlobalLookupDefinitions) then
+    GlobalLookupDefinitions.RemoveFromStore(AeLookup);
+end;
+
+
+function  GlobalLookupConfiguration(AeLookup: TbomLookup): TcustomLookupConfiguration;
+begin
+  Result:= nil;
+  if Assigned(GlobalLookupDefinitions) then
+    Result:= GlobalLookupDefinitions.FindConfiguration(AeLookup);
+end;
+
+function  GlobalLookupKeyResolution(var clur : TCustomLookupRecord) : string;
+begin
+  result := '';
+  if Assigned(GlobalLookupDefinitions) then
+    result := GlobalLookupDefinitions.lookupKeyResolution(clur);
+end;
+
+function  GlobalLookupDataset(AeLookup: TbomLookup): TDataset;
+var
+  oConfig : TcustomLookupConfiguration;
+begin
+  Result:= nil;
+  oConfig:= bomLookups.GlobalLookupConfiguration(AeLookup);
+  if Assigned(oConfig) then
+    Result:= oConfig.Dataset;
+end;
+
+procedure SetGlobalLookupConfigurationLookup(AeLookup: TbomLookup);
+begin
+
+end;
+
+
+procedure TGlobalLookupDefinitionStore.RefreshStore(AeLookup: TbomLookup);
+begin
+  FindConfiguration(aelookup).refresh;
+end;
+
+{ TGenericLookupConfiguration }
+class function TGenericLookupConfiguration.CreateWithParameters(const AsFilter: String; AoDataset: TDataset; const AwKeyLength: Word = 10): TGenericLookupConfiguration;
+begin
+  Result:= Self.Create;
+  Result.KeyFieldName    := 'Key_Lk';
+  Result.DescFieldName_EN:= 'Desc_Lk';
+  Result.Dataset         := AoDataset;
+  Result.KeyLength       := AwKeyLength;
+  Result.Filter          := AsFilter;
+end;
+
+procedure TGenericLookupConfiguration.refresh;
+begin
+  inherited;
+  if dataset.active then
+    dataset.close;
+
+  dataset.open;
+end;
+
+{ TSiteLookupConfiguration }
+class function TSiteLookupConfiguration.CreateWithParameters(AoDataset: TDataset): TSiteLookupConfiguration;
+begin
+  Result:= Self.Create;
+  Result.KeyFieldName           := 'Site';
+  Result.DescFieldName_EN       := 'SiteDesc';
+  Result.ObsoleteRecordFieldName:= 'IsObsolete';
+  Result.Dataset                := AoDataset;
+end;
+
+
+{ TCustomerProfileLookupConfiguration }
+class function TCustomerProfileLookupConfiguration.CreateWithParameters(AoDataset: TDataset): TCustomerProfileLookupConfiguration;
+begin
+  Result:= Self.Create;
+  Result.KeyFieldName           := 'ProfileNo';
+  Result.DescFieldName_EN       := 'ProfileName';
+  Result.ObsoleteRecordFieldName:= 'Hidden';
+  Result.Dataset                := AoDataset;
+end;
+
+
+{ TResourceFunctionLookupConfiguration }
+class function TResourceFunctionLookupConfiguration.CreateWithParameters(AoDataset: TDataset): TResourceFunctionLookupConfiguration;
+begin
+  Result:= Self.Create;
+  { Table contains a compound key. }
+  Result.GroupFieldName         := 'FunctionGroup';
+  Result.KeyFieldName           := 'FunctionCode';
+  {}
+  Result.DescFieldName_EN       := 'FunctionDesc';
+  Result.ObsoleteRecordFieldName:= 'Hidden';
+  {}
+  Result.Dataset                := AoDataset;
+end;
+
+
+{ TOrganisationalUnitLookupConfiguration }
+class function TOrganisationalUnitLookupConfiguration.CreateWithParameters(AoDataset: TDataset): TOrganisationalUnitLookupConfiguration;
+begin
+  Result:= Self.Create;
+
+  Result.KeyFieldName     := 'Key_OU';
+  Result.DescFieldName_EN := 'Desc_OU';
+  Result.ObsoleteRecordFieldName:= '';
+  {}
+  Result.Dataset:= AoDataset;
+end;
+
+{ TWarehouseLookupConfiguration }
+class function TWarehouseLookupConfiguration.CreateWithParameters(AoDataset: TDataset): TWarehouseLookupConfiguration;
+begin
+  Result:= Self.Create;
+  {}
+  Result.SiteKeyFieldName       := 'Site';
+  Result.KeyFieldName           := 'Warehouse';
+  Result.DescFieldName_EN       := 'WarehouseDesc';
+  Result.ObsoleteRecordFieldName:= 'IsObsolete';
+  {}
+  Result.Dataset:= AoDataset;
+end;
+
+{ TWarehouseRowLookupConfiguration }
+class function TWarehouseRowLookupConfiguration.CreateWithParameters(AoDataset: TDataset): TWarehouseRowLookupConfiguration;
+begin
+  Result:= Self.Create;
+  {}
+  Result.SiteKeyFieldName       := 'Site';
+  Result.WarehouseKeyFieldName  := 'Warehouse';
+  Result.KeyFieldName           := 'Row';
+  Result.DescFieldName_EN       := 'Row';
+  Result.ObsoleteRecordFieldName:= 'IsObsolete';
+  {}
+  Result.Dataset:= AoDataset;
+end;
+
+{ TStockLocationLookupConfiguration }
+class function TStockLocationLookupConfiguration.CreateWithParameters(AoDataset: TDataset): TStockLocationLookupConfiguration;
+begin
+  Result:= Self.Create;
+  {}
+  Result.SiteKeyFieldName       := 'Site';
+  Result.WarehouseKeyFieldName  := 'Warehouse';
+  Result.RowKeyFieldName        := 'Row';
+  Result.KeyFieldName           := 'Bin';
+  Result.DescFieldName_EN       := 'BinDesc';
+  {}
+  Result.ObsoleteRecordFieldName:= 'IsObsolete';
+  {}
+  Result.Dataset:= AoDataset;
+end;
+
+{ TcustomLookupConfiguration }
+
+constructor TcustomLookupConfiguration.create;
+begin
+  inherited;
+  FClurRrefresh          := false;
+end;
+
+class function TcustomLookupConfiguration.CreateWithParameters(
+  MasterClur: TCustomLookupRecord;  Refreshmeans: TCustomLookupRefresh): TcustomLookupConfiguration;
+begin
+  Result:= Self.Create;
+  result.FClur           := masterClur;
+  Result.KeyFieldName    := 'Key_Lk';
+  Result.DescFieldName_EN:= 'Desc_Lk';
+  //Result.Filter          := MasterClur.lookupgroup;
+  Result.FClurRrefresh   := true;
+end;
+
+procedure TcustomLookupConfiguration.refresh;
+begin
+  Fclur.lookuprefresh.Refresh(Fclur.lookupid,Fclur.args,self)
+end;
+
+
+
+
+
+{ TCustomLookupRefresh }
+
+function TCustomLookupRefresh.Refresh(id: TbomLookup;
+  args: TbomLookupLoadArguments; config : TcustomLookupConfiguration): boolean;
+begin
+  result := true;
+end;
+
+
+
+initialization
+  GlobalLookupDefinitions := TGlobalLookupDefinitionStore.Create;
+
+finalization
+  FreeAndNil(GlobalLookupDefinitions);
+
+end.
